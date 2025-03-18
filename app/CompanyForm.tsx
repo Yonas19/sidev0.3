@@ -10,7 +10,7 @@ import {
   Modal,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { WebView } from "react-native-webview";
+
 import {
   getStorage,
   ref,
@@ -83,7 +83,7 @@ const CompanyForm = () => {
             businessLicenseUrl,
           });
           console.log("Company information submitted successfully!");
-          router.push("/JobListing")
+          router.push("/Privacy")
         }
       );
     } catch (error) {
