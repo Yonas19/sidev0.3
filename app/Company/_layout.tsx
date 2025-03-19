@@ -14,20 +14,20 @@ export default function CompanyLayout() {
         }}
       />
       <Tabs.Screen
-        name="jobs"
+        name="JobPost"
         options={{
-          title: "Jobs",
+          title: "Add work",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase-outline" color={color} size={size} />
+            <Ionicons name="add" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "Updates",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" color={color} size={size} />
+            <Ionicons name="notifications-outline" color={color} size={size} />
           ),
         }}
       />
