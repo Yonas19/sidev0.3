@@ -10,16 +10,28 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { Checkbox } from "react-native-paper";
-import { db } from "../../FireBaseConfig"; // Import the Firebase configuration
-import { collection, addDoc } from "firebase/firestore"; // Firebase Firestore functions
+import { db } from "../../FireBaseConfig"; // Firebase configuration
+import { collection, doc, setDoc } from "firebase/firestore"; // Firestore functions
 
 export default function JobForm() {
   const [jobTitle, setJobTitle] = useState("");
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
   const [jobType, setJobType] = useState(null);
+  const [jobTypeItems, setJobTypeItems] = useState([
+    { label: "Remote", value: "Remote" },
+    { label: "On-Site", value: "On-Site" },
+    { label: "Hybrid", value: "Hybrid" },
+  ]);
+
   const [industryOpen, setIndustryOpen] = useState(false);
   const [industry, setIndustry] = useState(null);
-  const [workDays, setWorkDays] = useState([
+  const [industryItems, setIndustryItems] = useState([
+    { label: "Retail", value: "Retail" },
+    { label: "IT", value: "IT" },
+    { label: "Hospitality", value: "Hospitality" },
+  ]);
+
+  const [workDays] = useState([
     "Monday",
     "Tuesday",
     "Wednesday",
@@ -59,7 +71,6 @@ export default function JobForm() {
       return;
     }
 
-    // Create the job posting object
     const jobData = {
       jobTitle,
       jobType,
@@ -71,14 +82,13 @@ export default function JobForm() {
       location,
       deadline,
       description,
-      // Store the logged-in company ID
       createdAt: new Date(),
     };
 
     try {
-      // Add the job data to Firestore
-      const docRef = await addDoc(collection(db, "jobListings"), jobData);
-      Alert.alert("Success", "Job posted successfully!");
+      const jobRef = doc(collection(db, "jobListings")); // Generate a unique ID
+      await setDoc(jobRef, jobData);
+      Alert.alert("Success", "Job posted successfully!", [{ text: "OK", onPress: handleCancel }]);
     } catch (error) {
       console.error("Error adding document: ", error);
       Alert.alert("Error", "Something went wrong, please try again.");
@@ -117,13 +127,10 @@ export default function JobForm() {
         <DropDownPicker
           open={jobTypeOpen}
           value={jobType}
-          items={[
-            { label: "Remote", value: "Remote" },
-            { label: "On-Site", value: "On-Site" },
-            { label: "Hybrid", value: "Hybrid" },
-          ]}
+          items={jobTypeItems}
           setOpen={setJobTypeOpen}
           setValue={setJobType}
+          setItems={setJobTypeItems}
           style={styles.dropdown}
         />
       </View>
@@ -133,13 +140,10 @@ export default function JobForm() {
         <DropDownPicker
           open={industryOpen}
           value={industry}
-          items={[
-            { label: "Retail", value: "Retail" },
-            { label: "IT", value: "IT" },
-            { label: "Hospitality", value: "Hospitality" },
-          ]}
+          items={industryItems}
           setOpen={setIndustryOpen}
           setValue={setIndustry}
+          setItems={setIndustryItems}
           style={styles.dropdown}
         />
       </View>
@@ -151,9 +155,7 @@ export default function JobForm() {
             status={checkedDays.includes(day) ? "checked" : "unchecked"}
             onPress={() =>
               setCheckedDays((prev) =>
-                prev.includes(day)
-                  ? prev.filter((d) => d !== day)
-                  : [...prev, day]
+                prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
               )
             }
           />
@@ -224,10 +226,7 @@ export default function JobForm() {
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Done</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.cancelButton]}
-          onPress={handleCancel}
-        >
+        <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={handleCancel}>
           <Text style={styles.buttonText}>Cancel</Text>
         </TouchableOpacity>
       </View>

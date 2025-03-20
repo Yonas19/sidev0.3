@@ -6,14 +6,8 @@ import { ExpoRoot } from "expo-router";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-
-
-
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-
-
-
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -27,18 +21,9 @@ const firebaseConfig = {
   measurementId: "G-ZEKT1ZXCHM",
 };
 
-
-
-
 // Initialize Firebase
 
-
-
-
 const firebaseApp = initializeApp(firebaseConfig);
-
-
-
 
 // Get instances of Firestore and Storage
 const db = getFirestore(firebaseApp);
@@ -46,20 +31,4 @@ const storage = getStorage(firebaseApp);
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 
-
-
-
-
-
-
-
-export { firebaseApp, db, storage ,auth,firestore};
-
-
-
-
-
-
-
-
-
+export { firebaseApp, db, storage, auth, firestore };
