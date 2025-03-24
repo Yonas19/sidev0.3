@@ -9,6 +9,7 @@ export default function RootLayout() {
       <Stack.Screen name="WorkerForm" options={{ headerShown: false }} />
       <Stack.Screen name="Login" options={{ headerShown: false }} />
       <Stack.Screen name="Company" options={{ headerShown: false }} />
+      <Stack.Screen name="Worker" options={{ headerShown: false }} />
     </Stack>
   );
 }

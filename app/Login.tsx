@@ -63,7 +63,7 @@ const LoginScreen = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log("Worker User Data:", userData);
-          router.push("/JobListing");
+          router.push("/Worker");
         } else {
           console.log("User document not found in both collections.");
           setError("User not found.");

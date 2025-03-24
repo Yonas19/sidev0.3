@@ -12,20 +12,21 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { Checkbox } from "react-native-paper";
 import { db } from "../../FireBaseConfig"; // Firebase configuration
 import { collection, doc, setDoc } from "firebase/firestore"; // Firestore functions
+import { getAuth } from "firebase/auth"; // Add auth import
 
 export default function JobForm() {
   const [jobTitle, setJobTitle] = useState("");
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
-  const [jobType, setJobType] = useState(null);
-  const [jobTypeItems, setJobTypeItems] = useState([
+  const [jobType, setJobType] = useState<string | null>(null);
+  const [jobTypeItems] = useState([
     { label: "Remote", value: "Remote" },
     { label: "On-Site", value: "On-Site" },
     { label: "Hybrid", value: "Hybrid" },
   ]);
 
   const [industryOpen, setIndustryOpen] = useState(false);
-  const [industry, setIndustry] = useState(null);
-  const [industryItems, setIndustryItems] = useState([
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [industryItems] = useState([
     { label: "Retail", value: "Retail" },
     { label: "IT", value: "IT" },
     { label: "Hospitality", value: "Hospitality" },
@@ -40,7 +41,7 @@ export default function JobForm() {
     "Saturday",
     "Sunday",
   ]);
-  const [checkedDays, setCheckedDays] = useState([]);
+  const [checkedDays, setCheckedDays] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -71,6 +72,14 @@ export default function JobForm() {
       return;
     }
 
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to post a job.");
+      return;
+    }
+
     const jobData = {
       jobTitle,
       jobType,
@@ -83,6 +92,7 @@ export default function JobForm() {
       deadline,
       description,
       createdAt: new Date(),
+      userId: user.uid, // Add the user's ID to the job data
     };
 
     try {
@@ -130,7 +140,7 @@ export default function JobForm() {
           items={jobTypeItems}
           setOpen={setJobTypeOpen}
           setValue={setJobType}
-          setItems={setJobTypeItems}
+          setItems={() => {}}
           style={styles.dropdown}
         />
       </View>
@@ -143,7 +153,7 @@ export default function JobForm() {
           items={industryItems}
           setOpen={setIndustryOpen}
           setValue={setIndustry}
-          setItems={setIndustryItems}
+          setItems={() => {}}
           style={styles.dropdown}
         />
       </View>
