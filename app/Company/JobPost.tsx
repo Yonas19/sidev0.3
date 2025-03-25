@@ -43,6 +43,8 @@ export default function JobForm() {
   ]);
   const [checkedDays, setCheckedDays] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
+  const [salary, setSalary] = useState("");
+
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
@@ -62,6 +64,7 @@ export default function JobForm() {
       !industry ||
       checkedDays.length === 0 ||
       !phone ||
+      !salary ||
       !startTime ||
       !endTime ||
       !location ||
@@ -91,6 +94,7 @@ export default function JobForm() {
       location,
       deadline,
       description,
+      salary,
       createdAt: new Date(),
       userId: user.uid, // Add the user's ID to the job data
     };
@@ -98,7 +102,9 @@ export default function JobForm() {
     try {
       const jobRef = doc(collection(db, "jobListings")); // Generate a unique ID
       await setDoc(jobRef, jobData);
-      Alert.alert("Success", "Job posted successfully!", [{ text: "OK", onPress: handleCancel }]);
+      Alert.alert("Success", "Job posted successfully!", [
+        { text: "OK", onPress: handleCancel },
+      ]);
     } catch (error) {
       console.error("Error adding document: ", error);
       Alert.alert("Error", "Something went wrong, please try again.");
@@ -111,6 +117,7 @@ export default function JobForm() {
     setIndustry(null);
     setCheckedDays([]);
     setPhone("");
+    setSalary("");
     setStartTime("");
     setEndTime("");
     setLocation("");
@@ -165,7 +172,9 @@ export default function JobForm() {
             status={checkedDays.includes(day) ? "checked" : "unchecked"}
             onPress={() =>
               setCheckedDays((prev) =>
-                prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                prev.includes(day)
+                  ? prev.filter((d) => d !== day)
+                  : [...prev, day]
               )
             }
           />
@@ -205,6 +214,14 @@ export default function JobForm() {
         value={phone}
         onChangeText={setPhone}
       />
+      <Text style={styles.label}>Salary</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="AED/hr"
+        keyboardType="phone-pad"
+        value={salary}
+        onChangeText={setSalary}
+      />
 
       <Text style={styles.label}>Application Deadline</Text>
       <TextInput
@@ -236,7 +253,10 @@ export default function JobForm() {
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Done</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={handleCancel}>
+        <TouchableOpacity
+          style={[styles.button, styles.cancelButton]}
+          onPress={handleCancel}
+        >
           <Text style={styles.buttonText}>Cancel</Text>
         </TouchableOpacity>
       </View>

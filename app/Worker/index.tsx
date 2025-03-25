@@ -1,62 +1,100 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Animated, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  Animated,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
+  Image,
+  RefreshControl,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import { push } from "expo-router/build/global-state/routing";
-import { router, useNavigation } from "expo-router";
-import { db } from "../../FireBaseConfig"; // Import the Firestore instance
-import { collection, getDocs } from "firebase/firestore"; // Import Firestore functions
-
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../FireBaseConfig";
+import { getTimeAgo } from "../../app/dateUtils";
 
 const { width, height } = Dimensions.get("window");
 
-
 const JobListing = () => {
-  const navigation = useNavigation();  // Initialize navigation
-
-
+  const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("Most Viewed");
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
-  const bottomAnim = useState(new Animated.Value(-height * 0.5))[0]; // New animation for bottom bar
   const [bottombarVisible, setBottombarVisible] = useState(false);
-  const [salaryRange, setSalaryRange] = useState(50); // Default to 50 AED/hr
+  const [salaryRange, setSalaryRange] = useState(50);
   const [selectedTitle, setSelectedTitle] = useState("");
-  const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-
-interface Job {
-  id: string;
-  jobTitle: string;
-  location: string;
-  salary: string;
-  schedule: { day: string; date: string; time: string }[];
-  postdate: string;
-}
-
-
-const [jobs, setJobs] = useState<Job[]>([]); // State to hold job listings
-
-
-
+  const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
+  const bottomAnim = useState(new Animated.Value(-height * 0.5))[0];
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      const jobCollection = collection(db, "jobListings"); // Reference to the jobListings collection
-      const jobSnapshot = await getDocs(jobCollection); // Fetch documents
-const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job)); // Map to job objects
+    fetchJobs();
+  }, []);
+  const filteredJobs = jobs.filter((job) => {
+    const jobTitle = (job.jobTitle || "").toLowerCase();
+    const jobLocation = (job.location || "").toLowerCase();
+    const searchTerm = (search || "").toLowerCase();
+    const jobSalary = parseInt((job.salary || "0").replace(/\D/g, "")) || 0;
 
+    return (
+      (jobTitle.includes(searchTerm) || jobLocation.includes(searchTerm)) &&
+      jobSalary <= salaryRange &&
+      (selectedTitle ? job.jobTitle === selectedTitle : true) &&
+      (selectedLocation ? job.location === selectedLocation : true)
+    );
+  });
 
-      setJobs(jobList); // Update state with fetched jobs
-    };
+  const fetchJobs = async () => {
+    try {
+      setError(null);
+      const jobsCollection = collection(db, "jobListings");
+      const jobSnapshot = await getDocs(jobsCollection);
 
+      const jobList = jobSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          jobTitle: data.jobTitle || "No title",
+          location: data.location || "Location not specified",
+          salary: data.salary || "AED 0/hr",
+          schedule: data.schedule || [],
+          startTime: data.startTime || "Not specified",
+          endTime: data.endTime || "Not specified",
+          postdate: data.createdAt ? getTimeAgo(data.createdAt) : "Recently",
+          createdAt: data.createdAt || new Date().toISOString(),
+          ...data,
+          
+        };
+        
+      });
+      setJobs(jobList);
+      
+      console.log("Fetched jobs:", jobList.length);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+      setError("Failed to load jobs. Please try again.");
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchJobs(); // Call the fetch function
-  }, []); // Empty dependency array to run once on mount
-
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchJobs();
+    setRefreshing(false);
+  };
 
   const toggleSidebar = () => {
     Animated.timing(slideAnim, {
@@ -67,94 +105,113 @@ const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jo
     setSidebarVisible(!sidebarVisible);
   };
 
-
   const toggleBottombar = () => {
     Animated.timing(bottomAnim, {
-      toValue: bottombarVisible ? -height * 0.5 : 0, // Moves it up or down
+      toValue: bottombarVisible ? -height * 0.5 : 0,
       duration: 300,
       useNativeDriver: false,
     }).start();
     setBottombarVisible(!bottombarVisible);
   };
 
-
-  // Filter jobs based on search query
-  const filteredJobs = jobs.filter(job =>
-    (job.title.toLowerCase().includes(search.toLowerCase()) ||
-     job.location.toLowerCase().includes(search.toLowerCase())) &&
-    parseInt(job.salary.replace(/\D/g, "")) <= salaryRange
-    && (selectedTitle ? job.title === selectedTitle : true)
-    && (selectedLocation ? job.location === selectedLocation : true)
-  );
-
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#112752" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Sidebar */}
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
         <TouchableOpacity style={styles.closeButton} onPress={toggleSidebar}>
-          <Ionicons name="close" size={35} color="#112752" />
+          <Ionicons name="close" size={30} color="#112752" />
         </TouchableOpacity>
-        <Image style={styles.image} source={require("../../assets/images/side-logo.png")} />
-       
+        <Image
+          style={styles.image}
+          source={require("../../assets/images/splash-icon.png")}
+        />
         <Text style={styles.sidebarItem}>Saved Jobs</Text>
         <Text style={styles.sidebarItem}>About Us</Text>
         <Text style={styles.sidebarItem}>Privacy & Policy</Text>
         <Text style={styles.sidebarItem}>Contact Us</Text>
-        <TouchableOpacity
-          style={styles.sidebarlogout}
-          onPress={() => router.replace("/Login")} // Navigate to login
-        >
+        <TouchableOpacity style={styles.sidebarlogout}>
           <Text style={styles.sidebarlogouttext}>Logout </Text>
           <Ionicons name="log-out-outline" size={25} color="#112752" />
         </TouchableOpacity>
       </Animated.View>
 
-
+      {/* Bottom Filter Bar */}
       <Animated.View style={[styles.bottombar, { bottom: bottomAnim }]}>
         <TouchableOpacity style={styles.closeButton} onPress={toggleBottombar}>
           <Ionicons name="close" size={30} color="#09b9e6" />
         </TouchableOpacity>
-       
+
         <View style={styles.Designation}>
-          <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowDesignationDropdown(!showDesignationDropdown)}>
-            <Text style={styles.dropdownButtonText}>{selectedTitle || "Select Designation"}</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowDesignationDropdown(!showDesignationDropdown)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedTitle || "Select Designation"}
+            </Text>
             <Ionicons name="chevron-down" size={20} color="#fff" />
           </TouchableOpacity>
-
 
           {showDesignationDropdown && (
             <View style={styles.dropdownMenu}>
-              {Array.from(new Set(jobs.map(job => job.title))).map((title, index) => (
-                <TouchableOpacity key={index} style={styles.dropdownItem} onPress={() => {
-                  setSelectedTitle(title);
-                  setShowLocationDropdown(false);
-                }}>
-                  <Text style={styles.dropdownItemText}>{title}</Text>
-                </TouchableOpacity>
-              ))}
+              {Array.from(new Set(jobs.map((job) => job.jobTitle))).map(
+                (title, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedTitle(title);
+                      setShowDesignationDropdown(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{title}</Text>
+                  </TouchableOpacity>
+                )
+              )}
             </View>
           )}
-          <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowLocationDropdown(!showLocationDropdown)}>
-            <Text style={styles.dropdownButtonText}>{selectedLocation || "Select Location"}</Text>
+
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowLocationDropdown(!showLocationDropdown)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedLocation || "Select Location"}
+            </Text>
             <Ionicons name="chevron-down" size={20} color="#fff" />
           </TouchableOpacity>
 
-
           {showLocationDropdown && (
             <View style={styles.dropdownMenu}>
-              {Array.from(new Set(jobs.map(job => job.location))).map((location, index) => (
-                <TouchableOpacity key={index} style={styles.dropdownItem} onPress={() => {
-                  setSelectedLocation(location);
-                  setShowLocationDropdown(false);
-                }}>
-                  <Text style={styles.dropdownItemText}>{location}</Text>
-                </TouchableOpacity>
-              ))}
+              {Array.from(new Set(jobs.map((job) => job.location))).map(
+                (location, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedLocation(location);
+                      setShowLocationDropdown(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{location}</Text>
+                  </TouchableOpacity>
+                )
+              )}
             </View>
           )}
         </View>
-        <Text style={styles.salaryLabel}>Salary Range: AED {salaryRange}/hr</Text>
+
+        <Text style={styles.salaryLabel}>
+          Salary Range: AED {salaryRange}/hr
+        </Text>
         <Slider
           style={{ width: "100%", height: 40 }}
           minimumValue={20}
@@ -168,8 +225,7 @@ const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jo
         />
       </Animated.View>
 
-
-      {/* Header */}
+      {/* Main Content */}
       <View style={styles.header}>
         <TouchableOpacity onPress={toggleSidebar}>
           <Ionicons name="menu" size={24} />
@@ -178,11 +234,10 @@ const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jo
         <Ionicons name="notifications-outline" size={24} />
       </View>
 
-
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search places"
+          placeholder="Search jobs or locations"
           value={search}
           onChangeText={setSearch}
         />
@@ -191,61 +246,105 @@ const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jo
         </TouchableOpacity>
       </View>
 
-
       <View style={styles.filterContainer}>
         {["Most Viewed", "Nearby", "Latest"].map((filter) => (
           <TouchableOpacity
             key={filter}
-            style={[styles.filterButton, activeFilter === filter && styles.filterButtonActive, { width: width * 0.3 }]}
+            style={[
+              styles.filterButton,
+              activeFilter === filter && styles.filterButtonActive,
+              { width: width * 0.3 },
+            ]}
             onPress={() => setActiveFilter(filter)}
           >
-            <Text style={activeFilter === filter ? styles.filterTextActive : styles.filterText}>{filter}</Text>
+            <Text
+              style={
+                activeFilter === filter
+                  ? styles.filterTextActive
+                  : styles.filterText
+              }
+            >
+              {filter}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={fetchJobs}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      <ScrollView>
-        {filteredJobs.length > 0 ? (
-          filteredJobs.map((item, index) => (
-            <View key={index} style={styles.jobDetailCard}>
-              <TouchableOpacity style={styles.saveButton}>
-                <Ionicons name="bookmark-outline" size={24} color="#161b5a" />
-              </TouchableOpacity>
-              <Text style={styles.jobTitle}>{item.title}</Text>
-              <Text style={styles.jobLocation}>{item.location}</Text>
-              <View style={styles.scheduleContainer}>
-                {item.schedule.map((schedule, i) => (
-                  <View key={i} style={styles.jobInfoRow}>
-                    <Text style={styles.daycard}>{schedule.day}</Text>
-                    <Text style={styles.datecard}>{schedule.date}</Text>
-                    <Text style={styles.tmecard}>{schedule.time}</Text>
-                  </View>
-                ))}
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {filteredJobs.length > 0
+          ? filteredJobs.map((item, index) => (
+              <View key={index} style={styles.jobDetailCard}>
+                <TouchableOpacity style={styles.saveButton}>
+                  <Ionicons name="bookmark-outline" size={24} color="#161b5a" />
+                </TouchableOpacity>
+                <Text style={styles.jobTitle}>{item.jobTitle}</Text>
+                <Text style={styles.jobLocation}>{item.location}</Text>
+                <Text style={styles.jobLocation}>
+                  {item.startTime} - {item.endTime}
+                </Text>
+                <View style={styles.scheduleContainer}>
+                  {item.schedule &&
+                    item.schedule.map((day, i) => (
+                      <View key={i} style={styles.jobInfoRow}>
+                        <Text style={styles.daycard}>{day}</Text>
+                      </View>
+                    ))}
+                </View>
+                <View style={styles.salaryPostDateContainer}>
+                  <Text style={styles.jobInfo}>{item.salary} AED/hr</Text>
+                  <Text style={styles.postInfo}>Posted {item.postdate}</Text>
+                </View>
+                <TouchableOpacity style={styles.applyButton}>
+                  <Text style={styles.applyButtonText}>Apply Now</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.salaryPostDateContainer}>
-                <Text style={styles.jobInfo}>{item.salary}</Text>
-                <Text style={styles.postInfo}>Posted {item.postdate}</Text>
-              </View>
-              <TouchableOpacity style={styles.applyButton}>
-                <Text style={styles.applyButtonText}>Apply Now</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noResultsText}>No jobs found</Text>
-        )}
+            ))
+          : !error && (
+              <Text style={styles.noResultsText}>
+                No jobs found matching your criteria
+              </Text>
+            )}
       </ScrollView>
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 15,
     backgroundColor: "#fff",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    padding: 15,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  retryText: {
+    color: "#112752",
+    fontWeight: "bold",
   },
   header: {
     flexDirection: "row",
@@ -273,7 +372,7 @@ const styles = StyleSheet.create({
   image: {
     width: "50%",
     height: 40,
-    marginBottom: 50
+    marginBottom: 50,
   },
   sidebarItem: {
     color: "#0e0b0b",
@@ -296,18 +395,13 @@ const styles = StyleSheet.create({
     bottom: height - height * 0.5,
     width: 380,
     left: 4,
-    height: height * 0.5,  // 40% of screen height
+    height: height * 0.5,
     backgroundColor: "#2c5985",
     padding: 20,
     paddingTop: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     zIndex: 1500,
-  },
-  bottombarItem: {
-    color: "#0f0c0c",
-    fontSize: 18,
-    marginVertical: 10,
   },
   Designation: {
     flexDirection: "column",
@@ -381,10 +475,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginHorizontal: 2,
   },
-  jobInfo: {
-    color: "black",
-    fontSize: 14,
-  },
   filterButtonActive: {
     backgroundColor: "rgba(19, 65, 105, 1)",
   },
@@ -395,11 +485,6 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: "white",
     fontSize: 14,
-  },
-  scheduleContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
   },
   jobDetailCard: {
     backgroundColor: "#ececec",
@@ -423,6 +508,11 @@ const styles = StyleSheet.create({
     color: "gray",
     marginVertical: 5,
   },
+  scheduleContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   jobInfoRow: {
     flexDirection: "column",
     alignItems: "center",
@@ -437,6 +527,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 5,
+  },
+  jobInfo: {
+    color: "black",
+    fontSize: 14,
   },
   applyButton: {
     marginTop: 10,
@@ -460,6 +554,11 @@ const styles = StyleSheet.create({
     color: "gray",
     fontSize: 12,
   },
+  daycard: {
+    color: "#7a7373",
+    fontSize: 15,
+    alignSelf: "center",
+  },
   datecard: {
     color: "black",
     fontSize: 14,
@@ -471,15 +570,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: 50,
   },
-  daycard: {
-    color: "#7a7373",
-    fontSize: 15,
-    alignSelf: "center",
-  },
 });
 
-
 export default JobListing;
-
-
-
