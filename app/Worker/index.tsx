@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
-import { collection, getDocs } from "firebase/firestore";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "../../FireBaseConfig";
-
+import { getAuth } from "firebase/auth"; // Assuming Firebase Auth is used
 
 const timeAgo = (dateString: string) => {
   if (!dateString) return "N/A";
 
-
   const postDate = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
-
 
   if (diffInSeconds < 60) return `${diffInSeconds} sec ago`;
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
@@ -19,16 +17,12 @@ const timeAgo = (dateString: string) => {
   if (diffInSeconds < 30 * 86400) return `${Math.floor(diffInSeconds / 86400)} days ago`;
   if (diffInSeconds < 365 * 86400) return `${Math.floor(diffInSeconds / (30 * 86400))} months ago`;
 
-
   return `${Math.floor(diffInSeconds / (365 * 86400))} years ago`;
 };
 
-
 export default function JobListings() {
   interface Job {
-    postingDate: string; // New field
-
-
+    postingDate: string;
     id: string;
     jobTitle: string;
     jobType: string;
@@ -36,55 +30,64 @@ export default function JobListings() {
     workDays?: string[];
     location: string;
     deadline: string;
-   
   }
 
-
   const [jobs, setJobs] = useState<Job[]>([]);
-
-
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "jobListings"));
-        console.log("Fetched docs:", querySnapshot.docs);
-        querySnapshot.docs.forEach(doc => {
-          console.log("Job data:", doc.data());
-        });
-
-
         const jobList = querySnapshot.docs.map((doc) => {
           const data = doc.data();
           return {
             id: doc.id,
             postingDate: data.createdAt?.toDate
               ? data.createdAt.toDate().toISOString()
-              : data.createdAt, // Convert Firestore Timestamp to Date
+              : data.createdAt, 
             ...data,
           } as Job;
         });
-       
-
-
-
 
         setJobs(jobList);
       } catch (error) {
         console.error("Error fetching jobs: ", error);
-        setLoading(false);
-        return;
       } finally {
         setLoading(false);
       }
     };
 
-
     fetchJobs();
   }, []);
 
+  const applyForJob = async (jobTitle: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to apply for a job.");
+      return;
+    }
+    console.log("User Info:", user.email, user.uid);
+
+    const userData = {
+      email: user.email,
+      name: user.displayName || "Anonymous",
+      cv: "cv_url_placeholder", // You need to handle file uploads separately
+      emiratesId: "emirates_id_placeholder", // Retrieve from user profile or input
+      jobTitle,
+      appliedAt: new Date().toISOString(),
+    };
+
+    try {
+      await addDoc(collection(db, "jobApplications"), userData);
+      Alert.alert("Success", "Your application has been submitted!");
+    } catch (error) {
+      console.error("Error applying for job: ", error);
+      Alert.alert("Error", "Failed to submit application. Try again.");
+    }
+  };
 
   if (loading) {
     return (
@@ -93,7 +96,6 @@ export default function JobListings() {
       </View>
     );
   }
-
 
   return (
     <FlatList
@@ -109,10 +111,9 @@ export default function JobListings() {
           <Text style={styles.details}>
             Posting Date: {item.postingDate ? timeAgo(item.postingDate) : "N/A"}
           </Text>
-
-
           <Text style={styles.details}>Deadline: {item.deadline}</Text>
-          <TouchableOpacity style={styles.applyButton}>
+
+          <TouchableOpacity style={styles.applyButton} onPress={() => applyForJob(item.jobTitle)}>
             <Text style={styles.buttonText}>Apply Now</Text>
           </TouchableOpacity>
         </View>
@@ -120,7 +121,6 @@ export default function JobListings() {
     />
   );
 }
-
 
 const styles = StyleSheet.create({
   loadingContainer: {
@@ -163,6 +163,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-
-
-
