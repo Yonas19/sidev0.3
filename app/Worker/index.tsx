@@ -73,15 +73,15 @@ export default function JobListings() {
 
     const userData = {
       email: user.email,
-      name: user.displayName || "Anonymous",
-      cv: "cv_url_placeholder", // You need to handle file uploads separately
-      emiratesId: "emirates_id_placeholder", // Retrieve from user profile or input
+      name: user.fullName ,
+      cv: user.cvUrl, 
+      emiratesId: user.idUrl,
       jobTitle,
       appliedAt: new Date().toISOString(),
     };
 
     try {
-      await addDoc(collection(db, "jobApplications"), userData);
+      await addDoc(collection(db, "applications"), userData);
       Alert.alert("Success", "Your application has been submitted!");
     } catch (error) {
       console.error("Error applying for job: ", error);
@@ -114,7 +114,7 @@ export default function JobListings() {
           <Text style={styles.details}>Deadline: {item.deadline}</Text>
 
           <TouchableOpacity style={styles.applyButton} onPress={() => applyForJob(item.jobTitle)}>
-            <Text style={styles.buttonText}>Apply Now</Text>
+            <Text style={styles.buttonText} >Apply Now</Text>
           </TouchableOpacity>
         </View>
       )}

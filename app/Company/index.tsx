@@ -8,17 +8,19 @@ import {
   Dimensions,
   Modal,
   TextInput,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import Recruit from "../Recruit";
 import { useEffect } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDocs,getDoc, setDoc , collection} from "firebase/firestore";
 import { db, auth } from "../../FireBaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
 export default function WorkerHome() {
+  const [applications, setApplications] = useState([]);
   const [bottombarVisible, setBottomVisible] = useState(false);
   const bottomAnim = useState(new Animated.Value(-height * 0.9))[0];
 
@@ -54,7 +56,23 @@ export default function WorkerHome() {
     };
   
     fetchCompanyData();
-  }, []); // Runs once when the component mounts
+  }, []); 
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "applications"));
+        const apps = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setApplications(apps);
+      } catch (error) {
+        console.error("Error fetching applications: ", error);
+      }
+    };
+
+    fetchApplications();
+  }, []);
   
 
   const updateUserData = async () => {
@@ -100,27 +118,29 @@ export default function WorkerHome() {
       </View>
 
       {/* Scrollable Job Listings */}
-      <ScrollView style={styles.jobList}>
-        {[...Array(4)].map((_, index) => (
-          <TouchableOpacity key={index} onPress={toggleBottomBar} style={styles.jobCard}>
-            <View>
-              <Text style={styles.jobTitle}>Professional Waiter</Text>
-              <Text style={styles.jobCompany}>Dier Dubai</Text>
-              <Text>15 AED /hour</Text>
-              <View style={styles.starContainer}>
-                <Ionicons name="star" color="orange" />
-                <Ionicons name="star" color="orange" />
-                <Ionicons name="star" color="orange" />
-                <Ionicons name="star" color="orange" />
-              </View>
+      <FlatList
+      data={applications}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <TouchableOpacity style={styles.jobCard} onPress={toggleBottomBar}>
+          <View>
+            <Text style={styles.jobTitle}>{item.jobTitle || "Unknown Job"}</Text>
+            <Text style={styles.jobCompany}>{item.company || "Unknown Company"}</Text>
+            <Text>{item.salary || "N/A"} AED /hour</Text>
+            <View style={styles.starContainer}>
+              <Ionicons name="star" color="orange" />
+              <Ionicons name="star" color="orange" />
+              <Ionicons name="star" color="orange" />
+              <Ionicons name="star" color="orange" />
             </View>
-            <View style={styles.profileContainer}>
-              <Ionicons name="person" size={30} />
-              <Text>John Doe</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+          </View>
+          <View style={styles.profileContainer}>
+            <Ionicons name="person" size={30} />
+            <Text>{item.name || "Anonymous"}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    />
 
       {/* Animated Bottom Bar */}
       <Animated.View style={[styles.bottombar, { bottom: bottomAnim }]}>

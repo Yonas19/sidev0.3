@@ -18,11 +18,11 @@ export default function WorkerLayout() {
         }}
       />
       <Tabs.Screen
-        name="Jobs"
+        name="Courses"
         options={{
           title: "",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" color={color} size={size} />
+            <Ionicons name="book-outline" color={color} size={size} />
           ),
         }}
       />
