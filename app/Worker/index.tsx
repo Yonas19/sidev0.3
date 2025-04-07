@@ -69,13 +69,13 @@ export default function JobListings() {
       Alert.alert("Error", "You must be logged in to apply for a job.");
       return;
     }
-    console.log("User Info:", user.email, user.uid);
+    console.log("User Info:", user.email, user.uid,);
 
     const userData = {
       email: user.email,
-      name: user.fullName ,
-      cv: user.cvUrl, 
-      emiratesId: user.idUrl,
+      name: user.fullName || "",
+      cv: user.cvUrl || "", 
+      emiratesId: user.idUrl || "",
       jobTitle,
       appliedAt: new Date().toISOString(),
     };
